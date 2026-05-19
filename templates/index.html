@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tic Tac Toe</title>
+
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
+    <style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        color: white;
+    }
+
+    .container {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(15px);
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    h1 {
+        margin-bottom: 10px;
+    }
+
+    #playerInfo, #turnInfo, #scoreBoard {
+        margin: 8px;
+        font-size: 18px;
+    }
+
+    .board {
+        display: grid;
+        grid-template-columns: repeat(3, 110px);
+        gap: 12px;
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    .cell {
+        width: 110px;
+        height: 110px;
+        font-size: 40px;
+        font-weight: bold;
+        border: none;
+        border-radius: 15px;
+        cursor: pointer;
+        background: rgba(255,255,255,0.2);
+        color: white;
+        transition: 0.2s;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .cell:hover {
+        background: rgba(255,255,255,0.35);
+        transform: scale(1.05);
+    }
+
+    .cell:disabled {
+        cursor: not-allowed;
+        background: rgba(255,255,255,0.15);
+    }
+
+    .cell.X {
+        color: #ff6b6b;
+    }
+
+    .cell.O {
+        color: #4dabf7;
+    }
+
+    button {
+        margin-top: 20px;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 10px;
+        background: #ffffff;
+        color: #333;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    button:hover {
+        background: #f1f1f1;
+        transform: scale(1.05);
+    }
+</style>
+</head>
+<body>
+    <div class="container">
+
+<h1>🎮 Tic Tac Toe</h1>
+
+<h2 id="playerInfo"></h2>
+<h3 id="turnInfo"></h3>
+
+<div class="board" id="board"></div>
+
+<button onclick="playAgain()">🔄 Play Again</button>
+</div>
+<script>
+    var socket = io();
+    var board = ["","","","","","","","",""];
+    var myPlayer = null;
+    var room = null;
+    var currentTurn = "X";
+    var winningCombo=null;
+
+    room = prompt("Enter room name:");
+    socket.emit("join_room", {room: room});
+
+    function renderBoard() {
+        let boardDiv = document.getElementById("board");
+
+        if (!boardDiv) {
+            console.log("Board div not found!");
+            return;
+        }
+
+        boardDiv.innerHTML = "";
+
+        board.forEach((val, index) => {
+            let btn = document.createElement("button");
+            btn.className = "cell";
+
+            if (val !== " " && val !== "") {
+                btn.classList.add(val);
+                btn.classList.add("disabled");
+            }
+
+            btn.innerText = val === " " ? "" : val;
+
+            btn.onclick = () => {
+                if ((val === "" || val === " ") && myPlayer === currentTurn) {
+                    socket.emit("make_move", {
+                        room: room,
+                        cell: index
+                    });
+                }
+            };
+
+            boardDiv.appendChild(btn);
+        });
+
+        document.getElementById("turnInfo").innerText =
+            "Turn: " + currentTurn;
+    }
+
+    socket.on("connect", function() {
+        console.log("Connected to server");
+    });
+
+    socket.on("player_assign", function(data) {
+        myPlayer = data.player;
+        document.getElementById("playerInfo").innerText =
+            "You are: " + myPlayer;
+    });
+
+    socket.on("game_update", function(data) {
+        board = data.board;
+        winningCombo=data.combo;
+
+        if (data.turn) {
+            currentTurn = data.turn;
+        }
+
+        renderBoard();
+
+        if (data.winner) {
+            if (data.winner === "Draw") {alert("It's a Draw!");
+        } 
+        else {
+            alert(data.winner + " wins!");
+        }
+}
+    });
+
+    // 🔥 IMPORTANT: render initially
+    function renderBoard() {
+    let boardDiv = document.getElementById("board");
+    boardDiv.innerHTML = "";
+
+    board.forEach((val, index) => {
+        let btn = document.createElement("button");
+        btn.className = "cell";
+
+        // show X or O
+        btn.innerText = val === " " ? "" : val;
+
+        // color X and O
+        if (val === "X") {
+            btn.style.color = "#e74c3c";
+        } else if (val === "O") {
+            btn.style.color = "#3498db";
+        }
+
+        // disable filled cells
+        if (val !== " ") {
+            btn.disabled = true;
+        }
+
+        // 🎯 HIGHLIGHT WINNING CELLS
+        if (winningCombo && winningCombo.includes(index)) {
+            btn.style.background = "#2ecc71";  // green
+            btn.style.color = "white";
+        }
+
+        // click event
+        btn.onclick = () => {
+            if (val === " " && myPlayer === currentTurn) {
+                socket.emit("make_move", {
+                    room: room,
+                    cell: index
+                });
+            }
+        };
+
+        boardDiv.appendChild(btn);
+    });
+
+    document.getElementById("turnInfo").innerText =
+        "Turn: " + currentTurn;
+}
+
+    function playAgain() {
+        socket.emit("play_again", {room: room});
+    }
+</script>
+
+</body>
+</html>
